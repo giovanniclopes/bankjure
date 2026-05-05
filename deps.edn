@@ -1,0 +1,4 @@
+{:paths ["src" "test" "resources"]
+ :deps {org.clojure/clojure {:mvn/version "1.11.1"}
+        com.datomic/local {:mvn/version "1.0.291"}}
+ :aliases {:test {:main-opts ["-e" "(require 'ledger.logic-test) (clojure.test/run-tests 'ledger.logic-test)"]}}}
