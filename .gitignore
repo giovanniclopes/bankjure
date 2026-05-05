@@ -22,3 +22,6 @@ Thumbs.db
 
 .idea/
 *.iml
+
+web/node_modules/
+web/dist/

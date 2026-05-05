@@ -13,6 +13,13 @@
   (let [tx-data (logic/build-account-tx owner)]
     (d/transact conn {:tx-data [tx-data]})))
 
+(defn create-account-returning!
+  [conn owner]
+  (let [tx  (create-account! conn owner)
+        eid (first (vals (:tempids tx)))
+        m   (d/pull (d/db conn) '[:account/id :account/owner] eid)]
+    m))
+
 
 ;; -- RF03: Balance Calculation (the Reduce) ----------------------------
 

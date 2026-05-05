@@ -1,4 +1,9 @@
 {:paths ["src" "test" "resources"]
  :deps {org.clojure/clojure {:mvn/version "1.11.1"}
-        com.datomic/local {:mvn/version "1.0.291"}}
- :aliases {:test {:main-opts ["-e" "(require 'ledger.logic-test) (clojure.test/run-tests 'ledger.logic-test)"]}}}
+        com.datomic/local {:mvn/version "1.0.291"}
+        ring/ring-core {:mvn/version "1.12.2"}
+        ring/ring-jetty-adapter {:mvn/version "1.12.2"}
+        cheshire/cheshire {:mvn/version "5.13.0"}
+        ring-cors/ring-cors {:mvn/version "0.1.13"}}
+ :aliases {:test {:main-opts ["-e" "(require 'ledger.logic-test) (clojure.test/run-tests 'ledger.logic-test)"]}
+           :api {:main-opts ["-m" "ledger.server"]}}}
