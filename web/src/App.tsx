@@ -14,8 +14,12 @@ import {
 import {
   createAccount,
   getAccount,
+  getBalanceAsOf,
   postTransaction,
+  readApiToken,
+  writeApiToken,
   type AccountRes,
+  type BalanceAsOfRes,
   type TxWire,
 } from './api'
 
@@ -38,6 +42,9 @@ export default function App() {
   const [account, setAccount] = useState<AccountRes | null>(null)
   const [txList, setTxList] = useState<TxWire[]>([])
   const [amount, setAmount] = useState('50')
+  const [apiTokenDraft, setApiTokenDraft] = useState('')
+  const [balanceAsOfAt, setBalanceAsOfAt] = useState('')
+  const [balanceAsOf, setBalanceAsOf] = useState<BalanceAsOfRes | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
   const refreshGen = useRef(0)
   const refreshAbortRef = useRef<AbortController | null>(null)
@@ -59,6 +66,10 @@ export default function App() {
       if (e instanceof DOMException && e.name === 'AbortError') return
       return
     }
+  }, [])
+
+  useEffect(() => {
+    setApiTokenDraft(readApiToken())
   }, [])
 
   useEffect(() => {
@@ -90,7 +101,33 @@ export default function App() {
     setAccountId(null)
     setAccount(null)
     setTxList([])
+    setBalanceAsOf(null)
     setMsg(null)
+  }
+
+  const onSaveApiToken = () => {
+    writeApiToken(apiTokenDraft)
+    setMsg(
+      'Token salvo: requisições POST passam Authorization quando o servidor exige JWT.',
+    )
+  }
+
+  const onBalanceAsOfSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!accountId) return
+    setMsg(null)
+    const at = balanceAsOfAt.trim()
+    if (!at) {
+      setMsg('Informe um instante ISO-8601 (ex.: 2026-05-06T18:30:00.000Z).')
+      return
+    }
+    const res = await getBalanceAsOf(accountId, at)
+    setBalanceAsOf(res)
+    if (!res.ok) setMsg(res.error ?? 'Falha ao consultar saldo histórico.')
+  }
+
+  const fillBalanceAsOfNow = () => {
+    setBalanceAsOfAt(new Date().toISOString())
   }
 
   const onCreateAccount = async (e: FormEvent) => {
@@ -160,6 +197,27 @@ export default function App() {
             Contas e lançamentos ficam no Datomic em disco; esta página lembra
             a última conta neste aparelho.
           </p>
+          <div className="stack">
+            <label className="lbl" htmlFor="api-token">
+              JWT da API (opcional)
+            </label>
+            <input
+              id="api-token"
+              className="inp mono"
+              type="password"
+              autoComplete="off"
+              value={apiTokenDraft}
+              onChange={(e) => setApiTokenDraft(e.target.value)}
+              placeholder="Se BANKJURE_JWT_SECRET estiver definido"
+            />
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={onSaveApiToken}
+            >
+              Salvar token
+            </button>
+          </div>
           <form className="stack" onSubmit={onCreateAccount}>
             <label className="lbl" htmlFor="owner">
               Titular
@@ -221,6 +279,40 @@ export default function App() {
           ) : null}
           {accountId ? (
             <>
+              <div className="card">
+                <h2 className="h2">Saldo em instante</h2>
+                <form className="stack" onSubmit={onBalanceAsOfSubmit}>
+                  <label className="lbl" htmlFor="bal-at">
+                    Instante ISO-8601 (UTC recomendado)
+                  </label>
+                  <input
+                    id="bal-at"
+                    className="inp mono"
+                    value={balanceAsOfAt}
+                    onChange={(e) => setBalanceAsOfAt(e.target.value)}
+                    placeholder="2026-05-06T18:30:00.000Z"
+                  />
+                  <div className="inline">
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      onClick={fillBalanceAsOfNow}
+                    >
+                      Agora (UTC)
+                    </button>
+                    <button type="submit" className="btn">
+                      Consultar saldo
+                    </button>
+                  </div>
+                </form>
+                {balanceAsOf?.ok ? (
+                  <p className="mono">
+                    <span className="muted">{balanceAsOf.at}</span>
+                    {' → '}
+                    <strong>{balanceAsOf.balance ?? '—'}</strong>
+                  </p>
+                ) : null}
+              </div>
               <div className="card actions">
                 <form className="inline" onSubmit={onDeposit}>
                   <label className="lbl inline" htmlFor="amount">

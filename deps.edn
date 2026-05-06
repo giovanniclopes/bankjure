@@ -5,6 +5,11 @@
         ring/ring-jetty-adapter {:mvn/version "1.12.2"}
         cheshire/cheshire {:mvn/version "5.13.0"}
         ring-cors/ring-cors {:mvn/version "0.1.13"}
-        org.slf4j/slf4j-simple {:mvn/version "2.0.16"}}
- :aliases {:test {:main-opts ["-e" "(require '[clojure.test :as t] 'ledger.logic-test 'ledger.db-integration-test) (t/run-tests 'ledger.logic-test 'ledger.db-integration-test)"]}
-           :api {:main-opts ["-m" "ledger.server"]}}}
+        org.slf4j/slf4j-simple {:mvn/version "2.0.16"}
+        metosin/malli {:mvn/version "0.20.1"}
+        buddy/buddy-sign {:mvn/version "3.5.351"}}
+ :aliases {:test {:extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}}
+                 :main-opts ["-e" "(require '[clojure.test :as t] 'ledger.logic-test 'ledger.logic-properties-test 'ledger.db-integration-test) (t/run-tests 'ledger.logic-test 'ledger.logic-properties-test 'ledger.db-integration-test)"]}
+           :api {:main-opts ["-m" "ledger.server"]}
+           :build {:deps {io.github.clojure/tools.build {:mvn/version "0.10.5"}}
+                   :ns-default build}}}

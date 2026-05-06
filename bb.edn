@@ -1,0 +1,7 @@
+{:tasks
+ {api {:doc "Sobe o servidor HTTP (8080)"
+       :task (shell "clojure -M:api")}
+  test {:doc "Roda testes unitários e de propriedade"
+        :task (shell "clojure -M:test")}
+  uber {:doc "Gera uberjar em target/"
+        :task (shell "clojure -T:build uber")}}}

@@ -26,3 +26,19 @@
     (is (= (java.math.BigDecimal. "0") (db/get-balance (d/db conn) account-id)))
     (db/process-transaction! conn account-id :tx.type/deposit 50)
     (is (= (java.math.BigDecimal. "50") (db/get-balance (d/db conn) account-id)))))
+
+(deftest balance-as-of-matches-current-after-tx
+  (let [{:keys [conn]} (connect-isolated)
+        acct (db/create-account-returning! conn "T")
+        account-id (:account/id acct)
+        dbv (d/db conn)]
+    (is (= 0M (db/get-balance-as-of dbv account-id (java.util.Date. 0))))
+    (db/process-transaction! conn account-id :tx.type/deposit 33)
+    (let [db2     (d/db conn)
+          last-tx (ffirst
+                   (d/q '[:find (max ?i)
+                          :where [?e :db/txInstant ?i]]
+                        db2))]
+      (is (some? last-tx))
+      (is (= (db/get-balance db2 account-id)
+             (db/get-balance-as-of db2 account-id last-tx))))))

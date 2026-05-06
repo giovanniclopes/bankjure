@@ -1,5 +1,26 @@
+const API_TOKEN_KEY = 'bankjure.apiToken'
+
+export function readApiToken(): string {
+  return localStorage.getItem(API_TOKEN_KEY) ?? ''
+}
+
+export function writeApiToken(token: string): void {
+  const t = token.trim()
+  if (!t) localStorage.removeItem(API_TOKEN_KEY)
+  else localStorage.setItem(API_TOKEN_KEY, t)
+}
+
 async function readJson<T>(res: Response): Promise<T> {
   return (await res.json()) as T
+}
+
+function mutationHeaders(
+  base?: Record<string, string>,
+): Record<string, string> {
+  const headers: Record<string, string> = { ...(base ?? {}) }
+  const t = localStorage.getItem(API_TOKEN_KEY)?.trim()
+  if (t) headers.Authorization = `Bearer ${t}`
+  return headers
 }
 
 export type CreateAccountRes = {
@@ -12,7 +33,7 @@ export type CreateAccountRes = {
 export async function createAccount(owner: string): Promise<CreateAccountRes> {
   const res = await fetch('/api/accounts', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: mutationHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ owner }),
   })
   return readJson(res)
@@ -68,8 +89,29 @@ export async function postTransaction(
 ): Promise<PostTxRes> {
   const res = await fetch(`/api/accounts/${accountId}/transactions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: mutationHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ kind, amount }),
+  })
+  return readJson(res)
+}
+
+export type BalanceAsOfRes = {
+  ok: boolean
+  at?: string
+  balance?: string
+  error?: string
+}
+
+export async function getBalanceAsOf(
+  accountId: string,
+  atIso: string,
+  init?: RequestInit,
+): Promise<BalanceAsOfRes> {
+  const enc = encodeURIComponent(atIso)
+  const q = `at=${enc}&_=${Date.now()}`
+  const res = await fetch(`/api/accounts/${accountId}/balance-as-of?${q}`, {
+    cache: 'no-store',
+    ...init,
   })
   return readJson(res)
 }
