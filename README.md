@@ -87,7 +87,9 @@ npm install
 npm run dev
 ```
 
-O Vite encaminha `/api` para o backend em `8080` durante o desenvolvimento. Em produção, sirva `web/dist/` atrás de um proxy que aponte `/api` para o Jetty.
+O Vite encaminha `/api` para o backend em `8080` durante o desenvolvimento e o mesmo proxy vale para `npm run preview`. **Sem o Jetty em `8080`**, o proxy costuma responder **502**. Se aparecer **404** com “(from service worker)” no Chrome, em DevTools → **Aplicativo** → **Service workers** desregistre workers desse origin (ou desative “Offline” na aba Rede) e recarregue; um service worker pode devolver 404 sem ir ao Vite. JSON `{"error":"account not found"}` é 404 da API (conta inexistente no Datomic); `{"error":"not found"}` é rota não reconhecida.
+
+Em produção, sirva `web/dist/` atrás de um proxy que aponte `/api` para o Jetty.
 
 Build:
 

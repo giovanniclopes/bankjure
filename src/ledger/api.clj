@@ -34,13 +34,13 @@
   (try (java.util.UUID/fromString s) (catch Exception _ nil)))
 
 (defn account-segment [uri]
-  (or (when-let [[_ raw] (re-matches #"/api/accounts/([^/]+)/balance-as-of" uri)]
+  (or (when-let [[_ raw] (re-matches #"/api/accounts/([^/]+)/balance-as-of/?" uri)]
         (when-let [u (parse-account-uuid raw)]
           {:id u :tail :balance-as-of}))
-      (when-let [[_ raw] (re-matches #"/api/accounts/([^/]+)/transactions" uri)]
+      (when-let [[_ raw] (re-matches #"/api/accounts/([^/]+)/transactions/?" uri)]
         (when-let [u (parse-account-uuid raw)]
           {:id u :tail :transactions}))
-      (when-let [[_ raw] (re-matches #"/api/accounts/([^/]+)" uri)]
+      (when-let [[_ raw] (re-matches #"/api/accounts/([^/]+)/?" uri)]
         (when-let [u (parse-account-uuid raw)]
           {:id u :tail nil}))))
 
@@ -146,8 +146,10 @@
           :balance-as-of (handle-balance-as-of id req)
           nil (handle-get-account id)))
 
-      (and (= method :post) (str/ends-with? uri "/transactions"))
-      (when-let [[_ uuid-str] (re-matches #"/api/accounts/([^/]+)/transactions" uri)]
+      (and (= method :post)
+           (or (str/ends-with? uri "/transactions")
+               (str/ends-with? uri "/transactions/")))
+      (when-let [[_ uuid-str] (re-matches #"/api/accounts/([^/]+)/transactions/?" uri)]
         (when-let [id (parse-account-uuid uuid-str)]
           (handle-post-transaction id req)))
 
