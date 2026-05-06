@@ -8,17 +8,6 @@ import {
 import { FlexDirection, Overflow, loadYoga } from 'yoga-layout/load'
 import type { Config, Node as YogaNodeType } from 'yoga-layout/load'
 
-type Rect = { left: number; top: number; width: number; height: number }
-
-function toRect(n: YogaNodeType): Rect {
-  return {
-    left: n.getComputedLeft(),
-    top: n.getComputedTop(),
-    width: n.getComputedWidth(),
-    height: n.getComputedHeight(),
-  }
-}
-
 type YogaTree = {
   root: YogaNodeType
   sidebar: YogaNodeType
@@ -26,6 +15,8 @@ type YogaTree = {
   main: YogaNodeType
   config: Config
 }
+
+type Metrics = { sidebarWidth: number; headerHeight: number }
 
 export function YogaDashboardLayout(props: {
   sidebar: ReactNode
@@ -35,11 +26,7 @@ export function YogaDashboardLayout(props: {
   const wrapRef = useRef<HTMLDivElement>(null)
   const treeRef = useRef<YogaTree | null>(null)
   const [tree, setTree] = useState<YogaTree | null>(null)
-  const [rects, setRects] = useState<{
-    sidebar: Rect
-    header: Rect
-    main: Rect
-  } | null>(null)
+  const [metrics, setMetrics] = useState<Metrics | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -52,7 +39,7 @@ export function YogaDashboardLayout(props: {
       root.setFlexDirection(FlexDirection.Row)
 
       const sidebar = Yoga.Node.create(config)
-      sidebar.setWidth(280)
+      sidebar.setWidth(264)
       sidebar.setFlexShrink(0)
 
       const col = Yoga.Node.create(config)
@@ -92,7 +79,7 @@ export function YogaDashboardLayout(props: {
         t.config.free()
       }
       setTree(null)
-      setRects(null)
+      setMetrics(null)
     }
   }, [])
 
@@ -110,10 +97,9 @@ export function YogaDashboardLayout(props: {
       tr.root.setWidth(w)
       tr.root.setHeight(h)
       tr.root.calculateLayout(w, h)
-      setRects({
-        sidebar: toRect(tr.sidebar),
-        header: toRect(tr.header),
-        main: toRect(tr.main),
+      setMetrics({
+        sidebarWidth: tr.sidebar.getComputedWidth(),
+        headerHeight: tr.header.getComputedHeight(),
       })
     }
     apply()
@@ -123,54 +109,61 @@ export function YogaDashboardLayout(props: {
     return () => ro.disconnect()
   }, [tree])
 
+  const sw = metrics?.sidebarWidth ?? 264
+  const hh = metrics?.headerHeight ?? 56
+
   return (
-    <div ref={wrapRef} className="yoga-root">
-      {rects && (
-        <>
-          <div
-            className="yoga-pane yoga-sidebar"
-            style={{
-              position: 'absolute',
-              left: rects.sidebar.left,
-              top: rects.sidebar.top,
-              width: rects.sidebar.width,
-              height: rects.sidebar.height,
-              boxSizing: 'border-box',
-              overflow: 'auto',
-            }}
-          >
-            {props.sidebar}
-          </div>
-          <div
-            className="yoga-pane yoga-header"
-            style={{
-              position: 'absolute',
-              left: rects.header.left,
-              top: rects.header.top,
-              width: rects.header.width,
-              height: rects.header.height,
-              boxSizing: 'border-box',
-              overflow: 'hidden',
-            }}
-          >
-            {props.header}
-          </div>
-          <div
-            className="yoga-pane yoga-main"
-            style={{
-              position: 'absolute',
-              left: rects.main.left,
-              top: rects.main.top,
-              width: rects.main.width,
-              height: rects.main.height,
-              boxSizing: 'border-box',
-              overflow: 'auto',
-            }}
-          >
-            {props.main}
-          </div>
-        </>
-      )}
+    <div
+      ref={wrapRef}
+      className="yoga-root"
+      style={{
+        display: 'flex',
+        flexDirection: 'row',
+        width: '100%',
+        height: '100vh',
+        overflow: 'hidden',
+      }}
+    >
+      <aside
+        className="yoga-sidebar"
+        style={{
+          flex: `0 0 ${sw}px`,
+          minWidth: 0,
+          overflow: 'auto',
+        }}
+      >
+        {props.sidebar}
+      </aside>
+      <div
+        className="yoga-stage"
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        <header
+          className="yoga-header"
+          style={{
+            flex: `0 0 ${hh}px`,
+            overflow: 'hidden',
+          }}
+        >
+          {props.header}
+        </header>
+        <main
+          className="yoga-main"
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflow: 'auto',
+          }}
+        >
+          {props.main}
+        </main>
+      </div>
     </div>
   )
 }

@@ -1,42 +1,100 @@
 :root {
-  --text-h: #0f1419;
-  --text: #3d4f5f;
-  --text-muted: #6b7c8c;
-  --bg: #f6f7f9;
-  --bg-soft: #eef0f4;
-  --surface: #fff;
-  --border: #d5dbe3;
-  --accent: #2563eb;
-  --warn-bg: #fef3c7;
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, 'Cascadia Code', monospace;
+  --paper: #f4f2ec;
+  --paper-deep: #e8e4da;
+  --sheet: #fdfcfa;
+  --ink: #161514;
+  --ink-soft: #45423c;
+  --muted: #6f6a62;
+  --rule: #c9c2b4;
+  --rule-light: #e0dcd2;
+  --accent: #2f5d52;
+  --accent-dim: rgba(47, 93, 82, 0.12);
+  --warn-bg: #f7efd8;
+  --warn-edge: #9a7b2d;
+  --tx-deposit: #2f5d52;
+  --tx-withdraw: #8b4a3c;
+  --font-body: 'Atkinson Hyperlegible', 'Segoe UI', sans-serif;
+  --font-display: 'Literata', 'Georgia', serif;
+  --text: var(--ink-soft);
+  --text-h: var(--ink);
+  --text-muted: var(--muted);
+  --bg: var(--paper);
+  --bg-soft: var(--paper-deep);
+  --surface: var(--sheet);
+  --surface-2: var(--paper);
+  --border: var(--rule);
+  --border-strong: #a8a095;
+  --radius: 2px;
+  --radius-sm: 2px;
+  --track: min(92vw, 40rem);
+
+  font-synthesis: none;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --text-h: #e8edf2;
-    --text: #a8b4c0;
-    --text-muted: #7d8c9a;
-    --bg: #111418;
-    --bg-soft: #171c22;
-    --surface: #1a2028;
-    --border: #2a3440;
-    --accent: #60a5fa;
-    --warn-bg: #422006;
+    --paper: #141312;
+    --paper-deep: #0e0d0c;
+    --sheet: #1b1a18;
+    --ink: #eceae6;
+    --ink-soft: #c9c4bb;
+    --muted: #928c82;
+    --rule: #34312c;
+    --rule-light: #2a2724;
+    --accent: #7eb8aa;
+    --accent-dim: rgba(126, 184, 170, 0.14);
+    --warn-bg: #2a2218;
+    --warn-edge: #c9a227;
+    --tx-deposit: #7eb8aa;
+    --tx-withdraw: #d4a091;
   }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 17px;
 }
 
 body {
   margin: 0;
-  font-family: var(--sans);
+  min-height: 100vh;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.55;
   color: var(--text);
   background: var(--bg);
 }
 
 #root {
   min-height: 100vh;
+  width: 100%;
+  text-align: left;
 }
 
-* {
-  box-sizing: border-box;
+button,
+input {
+  font: inherit;
+}
+
+button {
+  font-size: 0.94rem;
+}
+
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

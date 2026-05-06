@@ -1,14 +1,36 @@
-import { useCallback, useState, type FormEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react'
+import { YogaDashboardLayout } from './YogaDashboardLayout'
+import {
+  clearStoredAccountId,
+  readStoredAccountId,
+  writeStoredAccountId,
+} from './accountStorage'
 import {
   createAccount,
   getAccount,
-  listTransactions,
   postTransaction,
   type AccountRes,
   type TxWire,
 } from './api'
-import { YogaDashboardLayout } from './YogaDashboardLayout'
-import './App.css'
+
+function kindLabel(kind: string): string {
+  if (kind === 'deposit' || kind === 'tx.type/deposit') return 'Depósito'
+  if (kind === 'withdraw' || kind === 'tx.type/withdraw') return 'Saque'
+  return kind
+}
+
+function kindClass(kind: string): string {
+  const k = kind.toLowerCase()
+  if (k.includes('deposit')) return 'deposit'
+  if (k.includes('withdraw')) return 'withdraw'
+  return ''
+}
 
 export default function App() {
   const [ownerInput, setOwnerInput] = useState('')
@@ -17,12 +39,59 @@ export default function App() {
   const [txList, setTxList] = useState<TxWire[]>([])
   const [amount, setAmount] = useState('50')
   const [msg, setMsg] = useState<string | null>(null)
+  const refreshGen = useRef(0)
+  const refreshAbortRef = useRef<AbortController | null>(null)
 
   const refresh = useCallback(async (id: string) => {
-    const [acc, txs] = await Promise.all([getAccount(id), listTransactions(id)])
-    setAccount(acc)
-    setTxList(txs.transactions ?? [])
+    refreshAbortRef.current?.abort()
+    const ctrl = new AbortController()
+    refreshAbortRef.current = ctrl
+    const { signal } = ctrl
+    const gen = ++refreshGen.current
+
+    try {
+      const acc = await getAccount(id, { signal })
+      if (gen !== refreshGen.current) return
+      setAccount(acc)
+      if (acc.ok) setTxList(acc.transactions ?? [])
+      else setTxList([])
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return
+      return
+    }
   }, [])
+
+  useEffect(() => {
+    const id = readStoredAccountId()
+    if (!id) return
+    setAccountId(id)
+    void refresh(id)
+    return () => {
+      refreshAbortRef.current?.abort()
+    }
+  }, [refresh])
+
+  useEffect(() => {
+    if (accountId) writeStoredAccountId(accountId)
+  }, [accountId])
+
+  useEffect(() => {
+    if (!accountId || account == null) return
+    if (account.ok !== false) return
+    clearStoredAccountId()
+    setAccountId(null)
+    setAccount(null)
+    setTxList([])
+    setMsg('Conta não encontrada no servidor (dados apagados ou outro ambiente).')
+  }, [accountId, account])
+
+  const forgetAccount = () => {
+    clearStoredAccountId()
+    setAccountId(null)
+    setAccount(null)
+    setTxList([])
+    setMsg(null)
+  }
 
   const onCreateAccount = async (e: FormEvent) => {
     e.preventDefault()
@@ -83,104 +152,139 @@ export default function App() {
     <YogaDashboardLayout
       sidebar={
         <div className="panel pad">
-          <div className="brand">bankjure</div>
-          <p className="hint">Shell calculado com Yoga Layout (WASM).</p>
+          <div className="side-lede">
+            <div className="brand">bankjure</div>
+            <span className="brand-tag">Registro imutável</span>
+          </div>
+          <p className="hint">
+            Contas e lançamentos ficam no Datomic em disco; esta página lembra
+            a última conta neste aparelho.
+          </p>
           <form className="stack" onSubmit={onCreateAccount}>
-            <label className="lbl">
-              Nova conta — titular
-              <input
-                className="inp"
-                value={ownerInput}
-                onChange={(e) => setOwnerInput(e.target.value)}
-                placeholder="Ex.: Maria"
-              />
+            <label className="lbl" htmlFor="owner">
+              Titular
             </label>
+            <input
+              id="owner"
+              className="inp"
+              value={ownerInput}
+              onChange={(e) => setOwnerInput(e.target.value)}
+              placeholder="Nome completo"
+              autoComplete="name"
+            />
             <button className="btn primary" type="submit">
-              Criar conta
+              Abrir conta
             </button>
           </form>
-          {accountId && (
-            <p className="mono small">
-              ID
-              <br />
-              {accountId}
-            </p>
-          )}
+          {accountId ? (
+            <>
+              <p className="mono">
+                <span className="muted">Identificador · </span>
+                {accountId}
+              </p>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={forgetAccount}
+              >
+                Esquecer esta conta
+              </button>
+            </>
+          ) : null}
         </div>
       }
       header={
         <div className="header-bar">
-          <h1 className="title">Ledger imutável</h1>
-          {account?.ok && (
-            <div className="balance-pill">
-              <span className="muted">Saldo</span>
-              <strong className="bal">{account.balance ?? '—'}</strong>
-              <span className="muted small pad-l">
-                {account.owner ? ` · ${account.owner}` : null}
-              </span>
+          <h1 className="title">Livro-razão</h1>
+          {account?.ok ? (
+            <div className="balance-block">
+              <span className="balance-label">Saldo</span>
+              <span className="bal">{account.balance ?? '—'}</span>
+              {account.owner ? (
+                <span className="balance-owner">{account.owner}</span>
+              ) : null}
             </div>
-          )}
+          ) : null}
         </div>
       }
       main={
-        <div className="panel pad main-inner">
-          {msg && <div className="banner">{msg}</div>}
-          {!accountId && (
-            <p className="muted">Crie uma conta na barra lateral para começar.</p>
-          )}
-          {accountId && (
+        <div className="main-scroll">
+          {msg ? <div className="banner">{msg}</div> : null}
+          {!accountId ? (
+            <div className="card">
+              <p className="empty-title">Nenhuma conta selecionada</p>
+              <p className="muted empty-text">
+                Abra uma conta à esquerda. Depois você registra depósitos e
+                saques; o histórico permanece consultável.
+              </p>
+            </div>
+          ) : null}
+          {accountId ? (
             <>
-              <div className="actions card">
+              <div className="card actions">
                 <form className="inline" onSubmit={onDeposit}>
-                  <label className="lbl inline">
+                  <label className="lbl inline" htmlFor="amount">
                     Valor
-                    <input
-                      className="inp narrow"
-                      inputMode="decimal"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                    />
                   </label>
+                  <input
+                    id="amount"
+                    className="inp narrow"
+                    inputMode="decimal"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    aria-label="Valor da movimentação"
+                  />
                   <button className="btn primary" type="submit">
                     Depositar
                   </button>
                 </form>
                 <form className="inline" onSubmit={onWithdraw}>
                   <button className="btn" type="submit">
-                    Sacar mesmo valor
+                    Sacar este valor
                   </button>
                 </form>
               </div>
               <div className="card">
-                <h2 className="h2">Transações</h2>
-                <table className="tbl">
-                  <thead>
-                    <tr>
-                      <th>Tipo</th>
-                      <th className="num">Valor</th>
-                      <th>Quando</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {txList.length === 0 && (
+                <h2 className="h2">Movimentação</h2>
+                <div className="tbl-wrap">
+                  <table className="tbl">
+                    <thead>
                       <tr>
-                        <td colSpan={3} className="muted">
-                          Nenhuma movimentação.
-                        </td>
+                        <th>Tipo</th>
+                        <th className="num">Valor</th>
+                        <th>Instante</th>
                       </tr>
-                    )}
-                    {txList.map((t, i) => (
-                      <tr key={`${t.at ?? ''}-${i}`}>
-                        <td>{t.kind}</td>
-                        <td className="num">{t.amount}</td>
-                        <td className="mono small">{t.at ?? '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {txList.length === 0 ? (
+                        <tr>
+                          <td colSpan={3} className="muted">
+                            Sem lançamentos.
+                          </td>
+                        </tr>
+                      ) : null}
+                      {txList.map((t, i) => {
+                        const kc = kindClass(t.kind)
+                        return (
+                          <tr key={`${t.at ?? ''}-${i}`}>
+                            <td>
+                              <span className={`kind-pill ${kc}`.trim()}>
+                                {kindLabel(t.kind)}
+                              </span>
+                            </td>
+                            <td className="num">{t.amount}</td>
+                            <td className="cell-time mono">
+                              {t.at ?? '—'}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </>
-          )}
+          ) : null}
         </div>
       }
     />

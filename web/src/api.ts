@@ -18,20 +18,28 @@ export async function createAccount(owner: string): Promise<CreateAccountRes> {
   return readJson(res)
 }
 
+export type TxWire = { kind: string; amount: string; at?: string }
+
 export type AccountRes = {
   ok: boolean
   accountId?: string
   owner?: string
   balance?: string
+  transactions?: TxWire[]
   error?: string
 }
 
-export async function getAccount(accountId: string): Promise<AccountRes> {
-  const res = await fetch(`/api/accounts/${accountId}`)
+export async function getAccount(
+  accountId: string,
+  init?: RequestInit,
+): Promise<AccountRes> {
+  const q = `_=${Date.now()}`
+  const res = await fetch(`/api/accounts/${accountId}?${q}`, {
+    cache: 'no-store',
+    ...init,
+  })
   return readJson(res)
 }
-
-export type TxWire = { kind: string; amount: string; at?: string }
 
 export type ListTxRes = {
   ok: boolean
@@ -41,8 +49,13 @@ export type ListTxRes = {
 
 export async function listTransactions(
   accountId: string,
+  init?: RequestInit,
 ): Promise<ListTxRes> {
-  const res = await fetch(`/api/accounts/${accountId}/transactions`)
+  const q = `_=${Date.now()}`
+  const res = await fetch(`/api/accounts/${accountId}/transactions?${q}`, {
+    cache: 'no-store',
+    ...init,
+  })
   return readJson(res)
 }
 
