@@ -30,22 +30,29 @@
    Uses two sub-queries; the client API only supports find-rel elements,
    so we use plain aggregates (not find-tuple or find-scalar)."
   [db account-id]
-  (let [lookup    [:account/id account-id]
-        deposits  (ffirst
-                    (d/q '[:find (sum ?amount)
-                           :in $ ?a
-                           :where [?tx :tx/account ?a]
-                                  [?tx :tx/type :tx.type/deposit]
-                                  [?tx :tx/amount ?amount]]
-                         db lookup))
-        withdraws (ffirst
-                    (d/q '[:find (sum ?amount)
-                           :in $ ?a
-                           :where [?tx :tx/account ?a]
-                                  [?tx :tx/type :tx.type/withdraw]
-                                  [?tx :tx/amount ?amount]]
-                         db lookup))]
-    (- (or deposits 0M) (or withdraws 0M))))
+  (if-let [acc-eid (ffirst
+                    (d/q '[:find ?e
+                           :in $ ?id
+                           :where [?e :account/id ?id]]
+                         db account-id))]
+    (let [deposits  (ffirst
+                     (d/q '[:find (sum ?amount)
+                            :with ?tx
+                            :in $ ?a
+                            :where [?tx :tx/account ?a]
+                                   [?tx :tx/type :tx.type/deposit]
+                                   [?tx :tx/amount ?amount]]
+                          db acc-eid))
+          withdraws (ffirst
+                     (d/q '[:find (sum ?amount)
+                            :with ?tx
+                            :in $ ?a
+                            :where [?tx :tx/account ?a]
+                                   [?tx :tx/type :tx.type/withdraw]
+                                   [?tx :tx/amount ?amount]]
+                          db acc-eid))]
+      (- (or deposits 0M) (or withdraws 0M)))
+    0M))
 
 
 ;; -- RF04: Time-Travel Audit -------------------------------------------
@@ -107,18 +114,30 @@
     (when eid
       (d/pull db '[:account/id :account/owner] eid))))
 
+(defn list-all-accounts
+  [db]
+  (->> (d/q '[:find ?e :where [?e :account/id _]] db)
+       (map (fn [[eid]] (d/pull db '[:account/id :account/owner] eid)))
+       (sort-by (comp str :account/owner))))
+
 (defn list-transactions
   "Returns all transaction facts for an account, unordered.
 
    Resolves :db/txInstant from the assertion datom's transaction entity."
   [db account-id]
-  (let [rows (d/q '[:find ?tx ?inst
-                    :in $ ?a
-                    :where [?tx :tx/account ?a]
-                           [?tx :tx/amount _ ?t true]
-                           [?t :db/txInstant ?inst]]
-                  db [:account/id account-id])]
-    (mapv (fn [[eid inst]]
-            (assoc (d/pull db '[:tx/type :tx/amount] eid)
-                   :db/txInstant inst))
-          rows)))
+  (if-let [acc-eid (ffirst
+                    (d/q '[:find ?e
+                           :in $ ?id
+                           :where [?e :account/id ?id]]
+                         db account-id))]
+    (let [rows (d/q '[:find ?tx ?inst
+                      :in $ ?a
+                      :where [?tx :tx/account ?a]
+                             [?tx :tx/amount _ ?t true]
+                             [?t :db/txInstant ?inst]]
+                    db acc-eid)]
+      (mapv (fn [[eid inst]]
+              (assoc (d/pull db '[:tx/type :tx/amount] eid)
+                     :db/txInstant inst))
+            rows))
+    []))
