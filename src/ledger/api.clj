@@ -13,9 +13,14 @@
         (reset! !conn c)
         c)))
 
+(def ^:private no-cache-headers
+  {"Cache-Control" "no-store, no-cache, must-revalidate"
+   "Pragma"        "no-cache"})
+
 (defn json-response [status body]
   {:status status
-   :headers {"Content-Type" "application/json; charset=utf-8"}
+   :headers (merge no-cache-headers
+                   {"Content-Type" "application/json; charset=utf-8"})
    :body (json/generate-string body)})
 
 (defn read-json-body [request]
@@ -35,7 +40,7 @@
 
 (defn balance->wire [b]
   (if (instance? java.math.BigDecimal b)
-    (str (.stripTrailingZeros b))
+    (.toPlainString (.stripTrailingZeros b))
     (str b)))
 
 (defn tx->wire [t]
@@ -63,10 +68,11 @@
   (let [dbv (d/db (conn!))
         acc (db/find-account dbv account-id)]
     (if acc
-      (json-response 200 {:ok        true
-                          :accountId (str (:account/id acc))
-                          :owner     (:account/owner acc)
-                          :balance   (balance->wire (db/get-balance dbv account-id))})
+      (json-response 200 {:ok           true
+                          :accountId    (str (:account/id acc))
+                          :owner        (:account/owner acc)
+                          :balance      (balance->wire (db/get-balance dbv account-id))
+                          :transactions (mapv tx->wire (db/list-transactions dbv account-id))})
       (json-response 404 {:ok false :error "account not found"}))))
 
 (defn handle-list-transactions [account-id]
@@ -100,7 +106,8 @@
           :else
           (let [res (db/process-transaction! (conn!) account-id kind amt)]
             (if (:success res)
-              (json-response 200 {:ok true})
+              (json-response 200 {:ok      true
+                                  :balance (balance->wire (db/get-balance (d/db (conn!)) account-id))})
               (json-response 422 {:ok     false
                                   :error  (:reason res)
                                   :balance (some-> res :balance balance->wire)}))))))))
